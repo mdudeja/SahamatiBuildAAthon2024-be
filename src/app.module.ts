@@ -7,6 +7,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import configuration from './config/configuration';
 import { ServicesModule } from './services/services.module';
 import { FiuofferingsModule } from './fiuofferings/fiuofferings.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { FiuofferingsModule } from './fiuofferings/fiuofferings.module';
     AuthModule,
     ServicesModule,
     FiuofferingsModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],

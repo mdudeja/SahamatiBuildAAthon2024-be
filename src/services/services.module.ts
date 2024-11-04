@@ -4,6 +4,10 @@ import { User, UserSchema } from './user/user.schema';
 import { UserService } from './user/user.service';
 import { OfferingService } from './offering/offering.service';
 import { Offering, OfferingSchema } from './offering/offering.schema';
+import { GeminiService } from './gemini/gemini.service';
+import { OpenaiService } from './openai/openai.service';
+import { PrompterService } from './prompter/prompter.service';
+import { RedisService } from './redis/redis.service';
 
 @Module({
   imports: [
@@ -20,7 +24,21 @@ import { Offering, OfferingSchema } from './offering/offering.schema';
       },
     ]),
   ],
-  providers: [UserService, OfferingService],
-  exports: [UserService, OfferingService],
+  providers: [
+    UserService,
+    OfferingService,
+    GeminiService,
+    OpenaiService,
+    PrompterService,
+    RedisService,
+  ],
+  exports: [
+    UserService,
+    OfferingService,
+    GeminiService,
+    OpenaiService,
+    PrompterService,
+    RedisService,
+  ],
 })
 export class ServicesModule {}

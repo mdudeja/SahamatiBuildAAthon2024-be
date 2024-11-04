@@ -17,4 +17,8 @@ export class OfferingService {
   async getAllByType(type: string): Promise<Offering[]> {
     return this.offeringModel.find({ offering_type: type }).exec();
   }
+
+  async getAll(): Promise<Offering[]> {
+    return this.offeringModel.find().exec();
+  }
 }

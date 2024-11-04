@@ -13,4 +13,8 @@ export class FiuofferingsService {
   async getOfferingsByType(type: string): Promise<any> {
     return this.offeringService.getAllByType(type);
   }
+
+  async getAllOfferings(): Promise<any> {
+    return this.offeringService.getAll();
+  }
 }
