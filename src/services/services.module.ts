@@ -8,6 +8,8 @@ import { GeminiService } from './gemini/gemini.service';
 import { OpenaiService } from './openai/openai.service';
 import { PrompterService } from './prompter/prompter.service';
 import { RedisService } from './redis/redis.service';
+import { EndUserService } from './end-user/end-user.service';
+import { EndUser, EndUserSchema } from './end-user/end-user.schema';
 
 @Module({
   imports: [
@@ -23,6 +25,12 @@ import { RedisService } from './redis/redis.service';
         schema: OfferingSchema,
       },
     ]),
+    MongooseModule.forFeature([
+      {
+        name: EndUser.name,
+        schema: EndUserSchema,
+      },
+    ]),
   ],
   providers: [
     UserService,
@@ -31,6 +39,7 @@ import { RedisService } from './redis/redis.service';
     OpenaiService,
     PrompterService,
     RedisService,
+    EndUserService,
   ],
   exports: [
     UserService,
@@ -39,6 +48,7 @@ import { RedisService } from './redis/redis.service';
     OpenaiService,
     PrompterService,
     RedisService,
+    EndUserService,
   ],
 })
 export class ServicesModule {}

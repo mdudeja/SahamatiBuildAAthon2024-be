@@ -12,6 +12,8 @@ import {
   Offering,
   OfferingSchema,
 } from 'src/services/offering/offering.schema';
+import { EndUserService } from 'src/services/end-user/end-user.service';
+import { EndUser, EndUserSchema } from 'src/services/end-user/end-user.schema';
 
 @Module({
   imports: [
@@ -19,6 +21,12 @@ import {
       {
         name: Offering.name,
         schema: OfferingSchema,
+      },
+    ]),
+    MongooseModule.forFeature([
+      {
+        name: EndUser.name,
+        schema: EndUserSchema,
       },
     ]),
   ],
@@ -31,6 +39,7 @@ import {
     RedisService,
     FiuofferingsService,
     OfferingService,
+    EndUserService,
   ],
   exports: [ChatService],
 })

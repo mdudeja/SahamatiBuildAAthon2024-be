@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Socket } from 'socket.io';
 import { FiuofferingsService } from 'src/fiuofferings/fiuofferings.service';
+import { EndUser } from 'src/services/end-user/end-user.schema';
 import { OpenaiService } from 'src/services/openai/openai.service';
 import {
   AssistantMessage,
@@ -41,7 +42,7 @@ export class ChatService {
     private readonly fiuOfferingService: FiuofferingsService,
   ) {}
 
-  async answerText(data: string, client_id: string) {
+  async answerText(data: string, client_id: string, endUserDetails: EndUser) {
     const session_id =
       this.connected_clients.get(client_id)?.session_id ?? client_id;
     const existingHistory = await this.redisService.getJSONArray(session_id);
@@ -67,10 +68,13 @@ export class ChatService {
       };
 
       const { question, questionTokens, payload } =
-        await this.prompterService.generatePromptForOpenAI({
-          ...json,
-          query: data,
-        });
+        await this.prompterService.generatePromptForOpenAI(
+          {
+            ...json,
+            query: data,
+          },
+          endUserDetails,
+        );
 
       const answer = await this.openAiService.answer(payload);
 
@@ -87,14 +91,17 @@ export class ChatService {
           {
             message: {
               role: 'assistant',
-              content: answer.answer,
+              content: await answer.answer,
             },
             promptTokens: answer.completion_tokens,
           },
         ],
       });
 
-      return answer.answer;
+      return {
+        answer: answer.answer,
+        endUserDetails: answer.endUserDetails,
+      };
     } catch (e) {
       console.error(e);
       return;

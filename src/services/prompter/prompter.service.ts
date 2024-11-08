@@ -2,8 +2,9 @@ import * as fs from 'fs';
 import { Injectable } from '@nestjs/common';
 import { RAGContext, RAGResponse } from 'src/chat/chat.service';
 import { RedisService } from '../redis/redis.service';
-import { isEmpty, startCase } from 'lodash';
+import { isEmpty } from 'lodash';
 import OpenAI from 'openai';
+import { EndUser } from '../end-user/end-user.schema';
 
 export type UserMessage = {
   message: {
@@ -41,7 +42,7 @@ export class PrompterService {
     });
   }
 
-  async generatePromptForOpenAI(context: RAGResponse) {
+  async generatePromptForOpenAI(context: RAGResponse, endUserDetails: EndUser) {
     if (!this.systemMessage) {
       this.systemMessage = await this.getSystemPrompt();
     }
@@ -56,6 +57,7 @@ export class PrompterService {
       question,
       searchResults,
       max_tokens: 4000,
+      endUserDetails,
     });
 
     const messagePayload = await this.createPromptPayload({
@@ -111,17 +113,31 @@ export class PrompterService {
       formatted.get((doc as any).offering_type)?.push((doc as any).details);
     });
 
-    return formatted;
+    const formattedMap = new Map<string, string[]>();
+    formatted.forEach((value, key) => {
+      formattedMap.set(
+        key,
+        value.map((v) => {
+          return Object.entries(v)
+            .map((e) => e.join(':'))
+            .join(',');
+        }),
+      );
+    });
+
+    return formattedMap;
   }
 
   async getFormattedUserMessage({
     question,
     searchResults,
     max_tokens = 4000,
+    endUserDetails,
   }: {
     question: string;
     searchResults: Map<string, string[]>;
     max_tokens: number;
+    endUserDetails?: EndUser;
   }): Promise<UserMessage> {
     if (isEmpty(searchResults)) {
       return {
@@ -136,16 +152,8 @@ export class PrompterService {
     let total_tokens = 0;
 
     const formatted = await Array.from(searchResults).reduce(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       async (acc, [org, docs]) => {
-        const org_text = `Solutions authenticated by ${startCase(org)}:\n`;
-        total_tokens = await this.getTokens([
-          { role: 'system', content: org_text },
-        ]);
-
-        if (total_tokens > max_tokens) {
-          return acc;
-        }
-
         const docs_text = (
           await Promise.all(
             docs.map(async (doc) => {
@@ -168,15 +176,31 @@ export class PrompterService {
           )
         ).join('');
 
-        return `${await acc}${org_text}${docs_text}\n\n`;
+        return `${await acc}${docs_text}\n\n`;
       },
       Promise.resolve(''),
     );
+    let formattedEndUserDetails = '';
+
+    if (endUserDetails) {
+      const endUserDetailsText = `Name: ${endUserDetails.name}\nPhone Number: ${endUserDetails.phone}\nPAN Number: ${endUserDetails.pan}\nAverage Monthly Balance: ${endUserDetails.amb}\n\n`;
+      const tokens = await this.getTokens([
+        {
+          role: 'system',
+          content: endUserDetailsText,
+        },
+      ]);
+
+      if (total_tokens + tokens <= max_tokens) {
+        formattedEndUserDetails += endUserDetailsText;
+        total_tokens += tokens;
+      }
+    }
 
     return {
       message: {
         role: 'user',
-        content: `Question: ${question}\n\nDocuments:\n\n${formatted}Answer: `,
+        content: `Question: ${question}\n\nDocuments:\n\nCustomerDetails:\n\n${formattedEndUserDetails}\n\nProduct Offerings:\n\n${formatted}Answer: `,
       },
       promptTokens: total_tokens,
     };

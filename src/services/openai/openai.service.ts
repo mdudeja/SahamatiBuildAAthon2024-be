@@ -7,12 +7,18 @@ import {
   PrompterService,
 } from '../prompter/prompter.service';
 import * as fs from 'fs';
+import { EndUserService } from '../end-user/end-user.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class OpenaiService {
   openai: OpenAI;
 
-  constructor(private readonly prompterService: PrompterService) {
+  constructor(
+    private readonly prompterService: PrompterService,
+    private readonly enduserService: EndUserService,
+    private readonly configService: ConfigService,
+  ) {
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -33,10 +39,57 @@ export class OpenaiService {
       frequency_penalty: 0.5,
     });
 
+    const processedAnswer = await this.processAnswer(
+      completion.choices[0].message.content,
+    );
+
     return {
-      answer: completion.choices[0].message.content,
+      answer: processedAnswer[0],
       completion_tokens: completion.usage.completion_tokens,
+      endUserDetails: processedAnswer[1],
     };
+  }
+
+  async processAnswer(answer: string) {
+    const sansBackticks = answer.replace(/`/g, '').trim();
+    const sansJsonText = sansBackticks.replace(/json/g, '').trim();
+    const sansLineBreaks = sansJsonText.replace(/\n/g, ' ').trim();
+
+    let endUserDetails = null;
+    let textMessage = null;
+
+    try {
+      const parsed = JSON.parse(sansLineBreaks);
+      if (parsed.phone_number) {
+        const endUser = await this.enduserService.findOne(
+          parsed.phone_number.toString(),
+          parsed.pan_number.toString(),
+        );
+
+        if (!endUser) {
+          textMessage =
+            'Oops! I could not find any details for the given phone number and PAN number. Please try again';
+        } else {
+          textMessage = `Hi ${endUser.name}, please provide the OTP sent to your registered mobile number`;
+          endUserDetails = endUser;
+        }
+      }
+
+      if (parsed.otp) {
+        if (parsed.otp.toString() === this.configService.get('default.otp')) {
+          textMessage =
+            'Thank you! Your OTP has been verified successfully. What would you like to know?';
+        } else {
+          textMessage =
+            'Oops! The OTP you provided is incorrect. Please try again';
+        }
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {
+      textMessage = sansJsonText;
+    }
+
+    return [textMessage, endUserDetails];
   }
 
   async fetchSearchIntent({

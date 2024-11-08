@@ -9,6 +9,7 @@ import {
 import { ChatService } from './chat.service';
 import { Socket } from 'socket.io';
 import { GeminiService } from 'src/services/gemini/gemini.service';
+import { EndUser } from 'src/services/end-user/end-user.schema';
 
 @WebSocketGateway({
   namespace: 'chat',
@@ -55,6 +56,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         | 'tts';
       content: any;
       needsTTS?: boolean;
+      endUserDetails?: EndUser;
     },
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
@@ -67,7 +69,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           content: 'Articulating...',
         });
 
-        const answer = this.chatService.answerText(data.content, client.id);
+        const answer = await this.chatService.answerText(
+          data.content,
+          client.id,
+          data.endUserDetails,
+        );
 
         client.emit('message', {
           event: 'articulating',
@@ -77,8 +83,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         client.emit('message', {
           event: 'answer-text',
-          content: answer,
+          content: answer.answer,
           needsTTS: data.needsTTS,
+          endUserDetails: answer.endUserDetails,
         });
         break;
       case 'get-language':
